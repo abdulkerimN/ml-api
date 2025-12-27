@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ML Predictor</title>
+</head>
+
+<body>
+    <h2>ML Prediction App</h2>
+
+    <textarea id="features" rows="5" cols="50">
+Enter comma-separated numbers
+</textarea><br><br>
+
+    <button onclick="predict('logistic')">Logistic Regression</button>
+    <button onclick="predict('tree')">Decision Tree</button>
+
+    <p id="result"></p>
+
+    <script>
+        async function predict(model) {
+            const features = document.getElementById("features").value
+                .split(",")
+                .map(Number);
+
+            const res = await fetch(`http://127.0.0.1:8000/predict/${model}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(features)
+            });
+
+            const data = await res.json();
+            document.getElementById("result").innerText =
+                "Prediction: " + data.prediction;
+        }
+    </script>
+</body>
+
+</html>
