@@ -1,39 +1,195 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8" />
     <title>Event Guest Attendance Predictor</title>
+
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, sans-serif;
+            background: linear-gradient(135deg, #f1f3f5, #dee2e6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        .card {
+            background: #ffffff;
+            width: 460px;
+            padding: 34px;
+            border-radius: 16px;
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+        
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 6px;
+        }
+        
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            font-size: 15px;
+        }
+        
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        
+        button {
+            width: 48%;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 18px rgba(0, 0, 0, 0.15);
+        }
+        
+        .logistic {
+            background-color: #4263eb;
+            color: white;
+        }
+        
+        .tree {
+            background-color: #2f9e44;
+            color: white;
+        }
+        
+        .result {
+            margin-top: 28px;
+            padding: 18px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            display: none;
+        }
+    </style>
 </head>
 
 <body>
-    <h2>ML Prediction App</h2>
+    <div class="card">
+        <h1>🎉 Event Guest Attendance Predictor</h1>
+        <p class="subtitle">
+            Estimate attendance to plan food and seating smartly.
+        </p>
 
-    <textarea id="features" rows="5" cols="50">
-Enter comma-separated numbers
-</textarea><br><br>
+        <label>Total Invitations Sent</label>
+        <input type="number" id="invitations" placeholder="e.g. 50" />
 
-    <button onclick="predict('logistic')">Logistic Regression</button>
-    <button onclick="predict('tree')">Decision Tree</button>
+        <label>Day of the Event</label>
+        <select id="day">
+      <option>Monday</option>
+      <option>Tuesday</option>
+      <option>Wednesday</option>
+      <option>Thursday</option>
+      <option>Friday</option>
+      <option>Saturday</option>
+      <option>Sunday</option>
+    </select>
 
-    <p id="result"></p>
+        <div class="buttons">
+            <button class="logistic" onclick="predict('logistic')">
+        Logistic Regression
+      </button>
+            <button class="tree" onclick="predict('tree')">
+        Decision Tree
+      </button>
+        </div>
+
+        <div id="result" class="result"></div>
+    </div>
 
     <script>
+        // Change this AFTER deployment
+        const API_BASE_URL = "http://127.0.0.1:8000";
+
+        function isWeekend(day) {
+            return (day === "Saturday" || day === "Sunday") ? 1 : 0;
+        }
+
         async function predict(model) {
-            const features = document.getElementById("features").value
-                .split(",")
-                .map(Number);
+            const invitationsInput = document.getElementById("invitations").value;
+            const invitations = Number(invitationsInput);
+            const day = document.getElementById("day").value;
 
-            const res = await fetch(`http://127.0.0.1:8000/predict/${model}`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(features)
-            });
+            if (isNaN(invitations) || invitations <= 0) {
+                alert("Please enter a valid number of invitations.");
+                return;
+            }
 
-            const data = await res.json();
-            document.getElementById("result").innerText =
-                "Prediction: " + data.prediction;
+            const payload = {
+                invitations: invitations,
+                is_weekend: isWeekend(day)
+            };
+
+            try {
+                const response = await fetch(
+                    `${API_BASE_URL}/predict/${model}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    }
+                );
+
+                const data = await response.json();
+                console.log("API response:", data); // debug-safe
+
+                const estimated = Number(data.prediction);
+
+                if (isNaN(estimated)) {
+                    alert("Invalid prediction received from server.");
+                    return;
+                }
+
+                const min = Math.max(0, estimated - 2);
+                const max = estimated + 2;
+                const recommended = Math.ceil(max * 1.1);
+
+                const resultDiv = document.getElementById("result");
+                resultDiv.style.display = "block";
+                resultDiv.innerHTML = `
+          <strong>Estimated Attendance:</strong>
+          ${min}–${max} people<br><br>
+          <strong>We recommend catering for:</strong>
+          ${recommended}
+        `;
+            } catch (error) {
+                alert("Error connecting to prediction service.");
+            }
         }
     </script>
 </body>
